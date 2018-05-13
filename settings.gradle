@@ -1,0 +1,6 @@
+rootProject.name = 'vertx-protobuf-services'
+
+include 'api-gateway'
+include 'health-check-service'
+include 'gtfs-lookup-service'
+include 'organization-service'

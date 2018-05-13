@@ -1,0 +1,65 @@
+// auto generated
+// don't modify
+package {{javaPckg}};
+
+import com.satori.libs.async.api.*;
+import com.satori.libs.async.core.*;
+import com.satori.libs.vertx.kotlin.*;
+import io.vertx.core.*;
+import io.vertx.core.buffer.*;
+import io.vertx.core.eventbus.*;
+import org.slf4j.*;
+
+{{#imports*}}
+import {{this}};
+{{/imports*}}
+
+public class {{proxyType}} implements {{apiType}} {
+  private final Logger log = LoggerFactory.getLogger(getClass());
+  private final Vertx vertx;
+  private final String address;
+
+  public {{proxyType}}(Vertx vertx) {
+    this(vertx, {{moduleType}}.address);
+  }
+
+  public {{proxyType}}(Vertx vertx, String address) {
+    this.vertx = vertx;
+    this.address = address;
+  }
+
+  {{#operations*}}
+  @Override
+  public IAsyncFuture<{{outputType}}> {{funName}}({{inputType}} msg){
+    Buffer buffer = Buffer.buffer();
+    try {
+      try (VxBufferOutputStream os = new VxBufferOutputStream()) {
+        msg.writeTo(os);
+      }
+    } catch (Throwable e) {
+      throw new ReplyException(ReplyFailure.RECIPIENT_FAILURE, e.getMessage());
+    }
+    DeliveryOptions deliveryOptions = new DeliveryOptions();
+    deliveryOptions.addHeader("action", "{{opId}}");
+    AsyncFuture<{{outputType}}> future = new AsyncFuture<>();
+    vertx.eventBus().<Buffer>send(address, buffer, deliveryOptions, res -> {
+      if (!res.succeeded()) {
+        future.fail(res.cause());
+        return;
+      }
+      final {{outputType}} result;
+      try {
+        try (VxBufferInputStream istream = new VxBufferInputStream(res.result().body())) {
+          result = {{outputType}}.parseFrom(istream);
+        }
+      }catch (Throwable ex){
+        log.error("failed to parse reply", ex);
+        future.fail(ex);
+        return;
+      }
+      future.succeed(result);
+    });
+    return future;
+  }
+  {{/operations*}}
+}

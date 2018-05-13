@@ -1,0 +1,116 @@
+gradle.startParameter.showStacktrace = ShowStacktrace.ALWAYS
+
+apply from: rootProject.file("metainfo.gradle")
+
+sourceSets {
+  codegen {
+    java.srcDirs = ['codegen/src']
+    resources.srcDirs = ['codegen/res']
+  }
+}
+
+task generateTemplates(type: DependencyExec) {
+  group 'codegen'
+  generateCodegenCode.dependsOn it
+
+  def out = file("codegen/gen")
+  def templates = fileTree("codegen/templates"){
+    include "*.mustache"
+  }
+
+  inputs.file(templates)
+  outputs.dir(out)
+
+  sourceSets.codegen.java.srcDir out
+
+  dependency satoriCodegenMustacheBuilder()
+  main = "com.satori.codegen.mustache.builder.App"
+
+  args "--templates", templates.files.join(File.pathSeparator)
+  args "--pckg", pckg
+  args "--out", out
+
+  doFirst {
+    delete out
+    println "generating templates ...."
+  }
+
+  clean.doFirst {
+    delete out
+  }
+
+  idea.module.generatedSourceDirs += out
+}
+
+task generateStubs(type: JavaExec) {
+  group 'codegen'
+  dependsOn generateProtoDescriptorSet
+  dependsOn rootProject.generateProtoIncludesDescriptorSet
+  generateCode.dependsOn it
+
+  def outDir = file("gen")
+  def stubsOutDir = new File(outDir, "stubs")
+  def apiOutDir = new File(outDir, "api")
+  def protoDescriptorSet = new File(buildDir, "grpc.pb")
+  def includesProtoDescriptorSet = new File(rootProject.buildDir, "grpc-includes.pb")
+
+  //inputs.file(protoDescriptorSet)
+  //inputs.file(includesProtoDescriptorSet)
+  outputs.dir(stubsOutDir)
+  outputs.dir(apiOutDir)
+
+  sourceSets.main.java.srcDir stubsOutDir
+  sourceSets.main.java.srcDir apiOutDir
+
+  classpath sourceSets.codegen.runtimeClasspath
+
+  main = "${pckg}.App"
+  args "--fds", protoDescriptorSet
+  args "--inc", includesProtoDescriptorSet
+  args "--out", outDir
+
+  doFirst {
+    delete stubsOutDir
+    delete apiOutDir
+    println "generating code...."
+    println commandLine.join(" ")
+  }
+
+  clean.doFirst {
+    delete stubsOutDir
+    delete apiOutDir
+  }
+}
+
+task codegenFatJar(type: Jar) {
+  group "build"
+  manifest {
+    attributes "Main-Class": "${pckg}.App"
+  }
+  baseName = "${archivesBaseName}-codegen-fat"
+
+  from {
+    configurations.codegenCompile.collect { it.isDirectory() ? it : zipTree(it) }
+  }
+  from {
+    sourceSets.codegen.output
+  }
+}
+
+// main dependencies
+dependencies {
+}
+
+// test dependencies
+dependencies {
+}
+
+// codegen dependencies
+dependencies {
+  codegenCompile "com.google.protobuf:protobuf-java:$protobufVersion"
+  codegenCompile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+  codegenCompile "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinCoroutinesVersion"
+
+  codegenCompile satoriLibsCommonKotlin()
+  codegenCompile satoriCodegenUtils()
+}

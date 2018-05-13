@@ -1,0 +1,244 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "org.andreyko.vertx.protobuf.services.gtfs.lookup.service";
+option java_outer_classname = "GtfsLookupProto";
+package org.andreyko.netty.grpc.test;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/any.proto";
+
+service GtfsLookup {
+  /*rpc stats (Request) returns (Reply) {
+  }
+  rpc logs (Request) returns (Reply) {
+  }*/
+  rpc status (google.protobuf.Empty) returns (Status) {
+  }
+  rpc info (google.protobuf.Empty) returns (Info) {
+  }
+  
+  rpc getAgency (AgencySelector) returns (Agency) {
+  }
+  rpc getAgencies (AgenciesSelector) returns (stream Agency) {
+  }
+  rpc getRoute (RouteSelector) returns (Route) {
+  }
+  rpc getRoutes (RoutesSelector) returns (stream Route) {
+  }
+  rpc getTrip (TripSelector) returns (Trip) {
+  }
+  rpc getTrips (TripsSelector) returns (stream Trip) {
+  }
+  rpc getShape (ShapeSelector) returns (Shape) {
+  }
+  rpc getShapes (ShapesSelector) returns (stream Shape) {
+  }
+  rpc getStop (StopSelector) returns (Stop) {
+  }
+  rpc getStops (StopsSelector) returns (stream Stop) {
+  }
+  rpc getStopTimes (StopTimesSelector) returns (stream StopTime) {
+  }
+  rpc getService (ServiceSelector) returns (Service) {
+  }
+  rpc getServices (ServicesSelector) returns (stream Service) {
+  }
+}
+
+message Status {
+  string name = 1;
+  string version = 2;
+  string api = 3;
+  string sha = 4;
+}
+
+message Info {
+  string name = 1;
+  string version = 2;
+  string api = 3;
+  string sha = 4;
+}
+
+message AgencySelector {
+  oneof alts {
+    string id = 1;
+    RouteSelector route = 2;
+    TripSelector trip = 3;
+  }
+}
+
+message AgenciesSelector {
+  oneof alts {
+    string stopId = 1;
+  }
+}
+
+message RouteSelector {
+  oneof alts {
+    string id = 1;
+    TripSelector trip = 2;
+  }
+}
+
+message RoutesSelector {
+  oneof alts {
+    AgencySelector agency = 1;
+  }
+}
+
+message TripSelector {
+  oneof alts {
+    string id = 1;
+  }
+}
+
+message TripsSelector {
+  oneof alts {
+    AgencySelector agency = 1;
+    RouteSelector route = 2;
+  }
+}
+
+message ShapeSelector {
+  oneof alts {
+    string id = 1;
+    TripSelector trip = 2;
+  }
+}
+
+message ShapesSelector {
+  oneof alts {
+    AgencySelector agency = 1;
+    RouteSelector route = 2;
+  }
+}
+
+message StopSelector {
+  oneof alts {
+    string id = 1;
+  }
+}
+
+message StopsSelector {
+  oneof alts {
+    TripSelector trip = 1;
+    RouteSelector route = 2;
+  }
+}
+
+message StopTimesSelector {
+  oneof alts {
+    TripSelector trip = 1;
+    StopSelector stop = 2;
+    RouteSelector route = 3;
+  }
+}
+
+message ServiceSelector {
+  oneof alts {
+    string id = 1;
+    TripSelector trip = 2;
+  }
+}
+
+message ServicesSelector {
+  oneof alts {
+    RouteSelector route = 1;
+  }
+}
+
+message Agency {
+  string id = 1;
+  string name = 2;
+  string url = 3;
+  string fareUrl = 4;
+  string timezone = 5;
+  string lang = 6;
+  string phone = 7;
+  string email = 8;
+}
+
+enum RouteType {
+  TRAM = 0;
+  SUBWAY = 1;
+  RAIL = 2;
+  BUS = 3;
+  FERRY = 4;
+  CABLE_CAR = 5;
+  GONDOLA = 6;
+  FUNICULAR = 7;
+}
+
+message Route {
+  string id = 1;
+  string agencyId = 2;
+  string shortName = 3;
+  string longName = 4;
+  string desc = 5;
+  RouteType type = 6;
+  string url = 7;
+  string color = 8;
+  string textColor = 9;
+  //? sortOrder = 10;
+}
+
+enum TripDirection {
+  OUTBOUND = 0;
+  INBOUND = 1;
+}
+message Trip {
+  string id = 1;
+  string serviceId = 2;
+  string routeId = 3;
+  string shapeId = 4;
+  string headsign = 5;
+  string shortName = 6;
+  TripDirection direction = 7;
+  //wheelchair_accessible
+  //bikes_allowed
+}
+
+message StopTime {
+  string tripId = 1;
+  string stopId = 2;
+  int32 seq = 3;
+  int32 arrival = 4;
+  int32 departure = 5;
+  string headsign = 6;
+  //PickupType PickupType = 7;
+  //DropOffType DropOffType = 8;
+  float shapeDistTraveled = 9;
+  //Timepoint timepoint =10;
+}
+
+message LatLng {
+  float lat = 1;
+  float lng = 2;
+}
+
+message Shape {
+  string id = 1;
+  repeated LatLng points = 2;
+}
+
+message Stop {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  float lat = 4;
+  float lng = 5;
+  //string zoneId = 6;
+  string url = 7;
+  //locationType locationType = 8;
+  //string parentStation = 9;
+  string timezone = 10;
+  //string wheelchairBoarding = 11;
+}
+
+message Service {
+  string id = 1;
+  int64 startDate = 2;
+  int64 endDate = 3;
+  int32 mask = 4;
+}

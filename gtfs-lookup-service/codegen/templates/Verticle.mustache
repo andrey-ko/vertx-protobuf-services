@@ -1,0 +1,59 @@
+// auto generated
+// don't modify
+package {{javaPckg}};
+
+import io.vertx.core.*;
+import io.vertx.core.buffer.*;
+import io.vertx.core.eventbus.*;
+import org.slf4j.*;
+
+
+{{#imports*}}
+import {{this}};
+{{/imports*}}
+
+public class {{verticleType}} extends AbstractVerticle {
+  private final Logger log = LoggerFactory.getLogger(getClass());
+  private final {{apiType}} service;
+  private final String address;
+
+  MessageConsumer<Buffer> consumer = null;
+
+  public {{verticleType}}({{apiType}} service) {
+    this(service, {{moduleType}}.address);
+  }
+
+  public {{verticleType}}({{apiType}} service, String address) {
+    this.service = service;
+    this.address = address;
+  }
+
+  @Override
+  public void start(Future<Void> future) {
+    log.info("started (deploymentId = ${deploymentID()})");
+
+    // create handler for service
+    Handler<Message<Buffer>> handler = new {{stubType}} (service);
+    consumer = vertx.eventBus().consumer(address, handler);
+    future.complete();
+  }
+
+  @Override
+  public void stop(Future<Void> future) {
+    log.info("stopping verticle (deploymentId = ${deploymentID()})...");
+
+    MessageConsumer<Buffer> consumer = this.consumer;
+    this.consumer = null;
+
+    if(consumer != null) {
+      try {
+        consumer.unregister();
+      } catch (Throwable ex) {
+        // swallow exception
+        log.error("failed to unregister message consumer", ex);
+      }
+    }
+
+    future.complete();
+  }
+}
