@@ -1,0 +1,96 @@
+// auto generated
+// don't modify
+package {{javaPckg}};
+
+import java.io.*;
+
+import com.satori.libs.async.api.*;
+import com.satori.libs.vertx.kotlin.*;
+
+import io.vertx.core.*;
+import io.vertx.core.buffer.*;
+import io.vertx.core.eventbus.*;
+import org.slf4j.*;
+
+{{#imports*}}
+import {{this}};
+{{/imports*}}
+
+public class {{stubType}} implements Handler<Message<Buffer>>  {
+  private final Logger log = LoggerFactory.getLogger(getClass());
+  private final {{apiType}} service;
+
+  public {{stubType}}({{apiType}} service) {
+    this.service = service;
+  }
+
+  @Override
+  public void handle(Message<Buffer> msg) {
+    try {
+      String action = msg.headers().get("action");
+      if (action == null) throw new ReplyException(ReplyFailure.RECIPIENT_FAILURE, "action not specified");
+
+      switch (action) {
+        {{#operations*}}
+        case "{{opId}}": {
+          final {{inputType}} input;
+          try(VxBufferInputStream istream = new VxBufferInputStream(msg.body())){
+            input = {{inputType}}.parseFrom(istream);
+          }
+          final IAsyncFuture<{{outputType}}> future;
+          try {
+            future = service.{{funName}}(input);
+          } catch (Throwable error) {
+            if (error instanceof ReplyException) {
+              msg.reply(error);
+            } else {
+              log.warn("request '{}' failed", action, error);
+              msg.reply(new ReplyException(ReplyFailure.RECIPIENT_FAILURE, error.getMessage()));
+            }
+            return;
+          }
+          future.onCompleted(ar -> {
+            if (!ar.isSucceeded()) {
+              Throwable error = ar.getError();
+              if (error instanceof ReplyException) {
+                msg.reply(error);
+              } else {
+                log.warn("request '{}' failed", action, error);
+                msg.reply(new ReplyException(ReplyFailure.RECIPIENT_FAILURE, error.getMessage()));
+              }
+            }else {
+              final Buffer buffer;
+              try {
+                buffer = Buffer.buffer();
+                try (VxBufferOutputStream ostream = new VxBufferOutputStream(buffer)) {
+                  ar.getValue().writeTo(ostream);
+                }
+              } catch (Throwable ex){
+                log.error("failed to parse reply", ex);
+                msg.reply(new ReplyException(ReplyFailure.RECIPIENT_FAILURE, ex.getMessage()));
+                return;
+              }
+              msg.reply(buffer);
+            }
+          });
+          break;
+        }
+        {{/operations*}}
+        default: {
+          throw new ReplyException(ReplyFailure.RECIPIENT_FAILURE, "invalid action: '" + action + "'");
+        }
+      }
+    } catch (ReplyException exn) {
+      msg.reply(exn);
+      if(exn.failureType() != ReplyFailure.RECIPIENT_FAILURE){
+        throw exn;
+      }
+    } catch (IOException exn) {
+      msg.reply(new ReplyException(ReplyFailure.RECIPIENT_FAILURE, exn.getMessage()));
+      throw new RuntimeException(exn);
+    } catch (Throwable exn) {
+      msg.reply(new ReplyException(ReplyFailure.RECIPIENT_FAILURE, exn.getMessage()));
+      throw exn;
+    }
+  }
+}

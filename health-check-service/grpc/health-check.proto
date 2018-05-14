@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "org.andreyko.vertx.protobuf.services.health.check.service";
+option java_outer_classname = "HealthCheckProto";
+package org.andreyko.vertx.protobuf.services.health.check.service;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/any.proto";
+
+service HealthCheck {
+  rpc status (google.protobuf.Empty) returns (Status) {
+  }
+
+  rpc getServiceStatuses(google.protobuf.Empty) returns (ServiceStatuses){
+  }
+}
+
+message Status {
+  string name = 1;
+  string version = 2;
+  string api = 3;
+  string sha = 4;
+}
+
+message ServiceStatus {
+  string name = 1;
+  string status = 2;
+}
+
+message ServiceStatuses {
+  repeated ServiceStatus serviceStatus = 1;
+}

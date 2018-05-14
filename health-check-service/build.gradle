@@ -2,8 +2,11 @@ gradle.startParameter.showStacktrace = ShowStacktrace.ALWAYS
 
 apply from: rootProject.file("metainfo.gradle")
 
+
 // main dependencies
 dependencies {
+  compile project(":gtfs-lookup-service")
+  compile project(":organization-service")
 }
 
 // test dependencies

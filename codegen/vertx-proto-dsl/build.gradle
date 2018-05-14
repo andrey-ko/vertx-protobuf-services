@@ -1,0 +1,61 @@
+gradle.startParameter.showStacktrace = ShowStacktrace.ALWAYS
+
+apply from: rootProject.file("metainfo.gradle")
+
+task generateTemplates(type: DependencyExec) {
+  group 'codegen'
+  generateCode.dependsOn it
+
+  def out = file("gen/templates")
+  def templates = fileTree("templates"){
+    include "*.mustache"
+  }
+
+  inputs.file(templates)
+  outputs.dir(out)
+
+  sourceSets.main.java.srcDir out
+  sourceSets.main.kotlin.srcDir out
+
+  dependency satoriCodegenMustacheBuilder()
+  main = "com.satori.codegen.mustache.builder.App"
+
+  args "--templates", templates.files.join(File.pathSeparator)
+  args "--pckg", pckg
+  args "--out", out
+
+  doFirst {
+    delete out
+    println "generating templates ...."
+  }
+
+  clean.doFirst {
+    delete out
+  }
+
+  idea.module.generatedSourceDirs += out
+}
+
+task fatJar(type: Jar) {
+  group "build"
+  manifest {
+    attributes "Main-Class": "${pckg}.App"
+  }
+  baseName = "${archivesBaseName}-fat"
+
+  from {
+    configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+  }
+  from {
+    sourceSets.compile.output
+  }
+}
+
+// main dependencies
+dependencies {
+  compile satoriCodegenUtils()
+}
+
+// test dependencies
+dependencies {
+}

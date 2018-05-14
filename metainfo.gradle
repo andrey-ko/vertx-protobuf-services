@@ -8,17 +8,18 @@ task generateMetaInfo(type: TransformTask) {
 
   def outputDir = file("gen/meta-info")
   def className = "MetaInfo"
-  def classFile = file("$outputDir/$pckgDir/${className}.kt")
 
   template = rootProject.file('metainfo.template.kt')
-  output = classFile
+  output = file("$outputDir/$pckgDir/${className}.kt")
   model.className = className
 
-  inputs.file(rootProject.file("gradle.properties"))
-  inputs.file(template)
-  outputs.file(output)
+  inputs.file rootProject.file("gradle.properties")
+  inputs.file template
+  outputs.dir outputDir
 
   project.sourceSets.main.java.srcDirs += outputDir
+  project.sourceSets.main.kotlin.srcDirs += outputDir
+  idea.module.generatedSourceDirs += outputDir
 
   doFirst {
     delete(outputDir)

@@ -1,6 +1,9 @@
 rootProject.name = 'vertx-protobuf-services'
 
-include 'api-gateway'
-include 'health-check-service'
-include 'gtfs-lookup-service'
-include 'organization-service'
+include ':codegen-vertx-proto-dsl'
+project(':codegen-vertx-proto-dsl').projectDir = file('codegen/vertx-proto-dsl')
+
+include ':api-gateway'
+include ':health-check-service'
+include ':gtfs-lookup-service'
+include ':organization-service'

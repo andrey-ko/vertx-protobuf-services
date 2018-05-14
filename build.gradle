@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.internal.*
+
 gradle.startParameter.showStacktrace = ShowStacktrace.ALWAYS
 gradle.startParameter.logLevel = LogLevel.DEBUG
 //logging.captureStandardOutput LogLevel.LIFECYCLE
@@ -22,7 +24,7 @@ static String fmtDotNotation(String value) {
   return value.replaceAll(~/[^\w]+/, ".")
 }
 
-static String relativePath(File base, File file){
+static String relativePath(File base, File file) {
   def delimeters = "/\\"
   List<String> basePath = base.path.tokenize(delimeters)
   List<String> targetPath = file.path.tokenize(delimeters)
@@ -45,7 +47,7 @@ static String relativePath(File base, File file){
   return CollectionUtils.join(File.separator, targetPath).replace("\\", "/")
 }
 
-static String relativePath(Project project, File file){
+static String relativePath(Project project, File file) {
   return relativePath(project.projectDir, file)
 }
 
@@ -244,6 +246,19 @@ subprojects {
     destinationDir = compileTestJava.destinationDir
   }
 
+
+  apply plugin: "kotlin-kapt"
+
+  kapt {
+    generateStubs = true
+    correctErrorTypes = true
+  }
+
+  afterEvaluate {
+    tasks.withType(KaptTask)*.group("codegen")
+    tasks.withType(KaptGenerateStubsTask)*.group("codegen")
+  }
+
   task createDefaultProjectStructure {
     group 'codegen'
     doLast {
@@ -286,35 +301,36 @@ subprojects {
     tasks["compile${n}Kotlin"].dependsOn t
   }
 
-  task generateProtoDescriptorSet {
-    group "codegen"
-    dependsOn rootProject.extractProtos
+  def protoDir = file("grpc")
+  def protoFiles = fileTree(protoDir) {
+    include "**/*.proto"
+  }
+  if (!protoFiles.empty) {
+    task generateProtoDescriptorSet {
+      group "codegen"
+      dependsOn rootProject.extractProtos
 
-    def out = file("$buildDir/grpc.pb")
-    def protoDir = file("grpc")
-    def protoFiles = fileTree(protoDir) {
-      include "**/*.proto"
-    }
-    def incDir = rootProject.file("grpc/include")
+      def out = file("$buildDir/grpc.pb")
+      def incDir = rootProject.file("grpc/include")
 
-    def cfg = project.configurations.detachedConfiguration()
-    cfg.dependencies.add(dependencies.create(
-      "com.google.protobuf:protoc:3.5.1:${osdetector.classifier}@exe"
-    ))
+      def cfg = project.configurations.detachedConfiguration()
+      cfg.dependencies.add(dependencies.create(
+        "com.google.protobuf:protoc:3.5.1:${osdetector.classifier}@exe"
+      ))
 
-    inputs.files cfg
-    inputs.files protoFiles
+      inputs.files cfg
+      inputs.files protoFiles
 
-    outputs.file out
-    outputs.dir file("gen/types")
+      outputs.file out
+      outputs.dir file("gen/types")
 
-    sourceSets.main.java.srcDir file("gen/types")
+      sourceSets.main.java.srcDir file("gen/types")
+      sourceSets.main.kotlin.srcDir file("gen/types")
+      idea.module.generatedSourceDirs += file("gen/types")
 
-    doFirst {
-      delete out
-      delete file("gen/types")
-      if (!protoFiles.empty) {
-        file("gen/types").mkdirs()
+      doFirst {
+        delete out
+        out.parentFile.mkdirs()
         exec {
           commandLine = [
             cfg.singleFile,
@@ -328,6 +344,9 @@ subprojects {
           commandLine += protoFiles.collect { "\"${relativePath(protoDir, it)}\"" }
           logger.lifecycle("> ${commandLine.join(' ')}")
         }
+
+        delete file("gen/types")
+        file("gen/types").mkdirs()
         exec {
           commandLine = [
             cfg.singleFile,
@@ -339,13 +358,62 @@ subprojects {
           logger.lifecycle("> ${commandLine.join(' ')}")
         }
       }
+
+      clean.doFirst {
+        delete out
+        delete file("gen/types")
+      }
     }
 
-    clean.doFirst {
-      delete out
-      delete file("gen/types")
+    task generateStubs(type: DependencyExec) {
+      group 'codegen'
+      dependsOn generateProtoDescriptorSet
+      dependsOn rootProject.generateProtoIncludesDescriptorSet
+      generateCode.dependsOn it
+
+      def outDir = file("gen")
+      def stubsOutDir = new File(outDir, "stubs")
+      def apiOutDir = new File(outDir, "api")
+      def protoDescriptorSet = new File(buildDir, "grpc.pb")
+      def includesProtoDescriptorSet = new File(rootProject.buildDir, "grpc-includes.pb")
+
+      // TODO: fix it, inputs should be deduced from tasks dependencies ?
+      inputs.file(generateProtoDescriptorSet.outputs)
+      inputs.file(rootProject.generateProtoIncludesDescriptorSet.outputs)
+
+      outputs.dir(stubsOutDir)
+      outputs.dir(apiOutDir)
+
+      sourceSets.main.java.srcDir stubsOutDir
+      sourceSets.main.kotlin.srcDir stubsOutDir
+      idea.module.generatedSourceDirs += stubsOutDir
+
+      sourceSets.main.java.srcDir apiOutDir
+      sourceSets.main.kotlin.srcDir apiOutDir
+      idea.module.generatedSourceDirs += apiOutDir
+
+      dependency project(":codegen-vertx-proto-dsl")
+      main = "${project(":codegen-vertx-proto-dsl").pckg}.App"
+
+      args "--fds", protoDescriptorSet
+      args "--inc", includesProtoDescriptorSet
+      args "--out", outDir
+
+      doFirst {
+        delete stubsOutDir
+        delete apiOutDir
+        println "generating code...."
+        println commandLine.join(" ")
+      }
+
+      clean.doFirst {
+        delete stubsOutDir
+        delete apiOutDir
+      }
     }
   }
+
+
 
   repositories {
     jcenter()
@@ -353,6 +421,7 @@ subprojects {
     maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
   }
 
+  // main dependencies
   dependencies {
     compile "org.slf4j:slf4j-api:$slf4jVersion"
     compile "org.slf4j:slf4j-jdk14:$slf4jVersion"
@@ -365,9 +434,6 @@ subprojects {
 
     compile "io.vertx:vertx-core:$vertxVersion"
     compile "io.vertx:vertx-codegen:$vertxVersion"
-    //compile "io.vertx:vertx-rx-java:$vertxVersion"
-    compile "io.vertx:vertx-service-proxy:$vertxVersion"
-    compile "io.vertx:vertx-service-discovery:$vertxVersion"
     compile "io.vertx:vertx-hazelcast:$vertxVersion"
 
     compile "com.google.dagger:dagger:$daggerVersion"
@@ -376,4 +442,10 @@ subprojects {
     compile "com.google.protobuf:protobuf-java:$protobufVersion"
 
   }
+
+  // kapt dependencies
+  dependencies {
+    kapt "com.google.dagger:dagger-compiler:$daggerVersion"
+  }
+
 }

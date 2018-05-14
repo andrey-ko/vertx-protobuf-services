@@ -2,6 +2,7 @@ gradle.startParameter.showStacktrace = ShowStacktrace.ALWAYS
 
 apply from: rootProject.file("metainfo.gradle")
 
+
 // main dependencies
 dependencies {
 }
