@@ -11,7 +11,7 @@ class AppConfig {
   var inc: String? = null
   
   @JsonProperty("--out")
-  var out: String = ""
+  lateinit var out: String
 }
 
 
